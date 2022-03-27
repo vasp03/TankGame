@@ -39,12 +39,15 @@ down  = False
 right = False
 left  = False
 
+alive = True
 bullet_list=[]
 enemy_list=[]
 small_window_x, small_window_y = window_x, window_y
 pygame.init()
 pygame.display.set_caption('Ett spel, I guess')
 fps = pygame.time.Clock()
+scoreCount=0
+font = pygame.font.Font('freesansbold.ttf', 32)
 
 
 
@@ -218,26 +221,30 @@ class enemy():
         pygame.draw.rect(game_window, green, pygame.Rect(self.x, self.y, 30, 30))
 
     def detectCollision(self):
+        global alive,scoreCount
+        xx,yy = range(self.x,self.x+30,1),range(self.y,self.y+30,1)
+        px1,px2 = player.x,player.x+30
+        py1,py2 = player.y,player.y+30
+
+        if px1 in xx or px2 in xx:
+            if py1 in yy or py2 in yy:
+                alive=False
+                score = font.render(str(scoreCount), True, white)
+
         for bullet in bullet_list:
             bx1,bx2 = bullet.x,bullet.x+10
             by1,by2 = bullet.y,bullet.y+10
-            px1,px2 = player.x,player.x+30
-            py1,py2 = player.y,player.y+30
-            xx,yy = range(self.x,self.x+30),range(self.y,self.y+30)
-
-            if px1 in xx or px2 in xx:
-                if py1 in yy or py2 in yy:
-                    print("Dead")
-
+         
             if bx1 in xx or bx2 in xx:
                 if by1 in yy or by2 in yy:
                     print("Hit")
                     try:
                         enemy_list.remove(self)
+                        scoreCount+=1
                     except:
                         print("Can't kill")
 def input():
-    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y
+    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -245,34 +252,39 @@ def input():
             quit()
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_w: up   =  True
-            if event.key == pygame.K_s: down =  True
-            if event.key == pygame.K_a: right=  True
-            if event.key == pygame.K_d: left =  True
+            if event.key == pygame.K_w and alive: up   =  True
+            if event.key == pygame.K_s and alive: down =  True
+            if event.key == pygame.K_a and alive: right=  True
+            if event.key == pygame.K_d and alive: left =  True
 
-            if event.key == pygame.K_UP: player.canon_direction   = [True,True]
-            if event.key == pygame.K_DOWN: player.canon_direction = [False,False]
-            if event.key == pygame.K_LEFT: player.canon_direction = [True,False]
-            if event.key == pygame.K_RIGHT: player.canon_direction= [False,True]
+            if event.key == pygame.K_UP and alive: player.canon_direction   = [True,True]
+            if event.key == pygame.K_DOWN and alive: player.canon_direction = [False,False]
+            if event.key == pygame.K_LEFT and alive: player.canon_direction = [True,False]
+            if event.key == pygame.K_RIGHT and alive: player.canon_direction= [False,True]
 
-            if event.key == pygame.K_ESCAPE or event.key == pygame.K_r:
+            if event.key == pygame.K_r:
+                alive=True
+                scoreCount=0
+                enemy_list=[]
+                bullet_list=[]
+                player.x,player.y = round(window_x/2), round(window_y/2)
+                up,down,right,left=False,False,False,False
+            if event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 quit()
-            if event.key == pygame.K_SPACE:
+            if event.key == pygame.K_SPACE and alive:
                 bullet.spawn()
 
 
-        if event.type == pygame.KEYUP:
+        if event.type == pygame.KEYUP and alive:
             if event.key == pygame.K_w: up   =  False
             if event.key == pygame.K_s: down =  False
             if event.key == pygame.K_a: right=  False
             if event.key == pygame.K_d: left =  False
 
-            if event.key == pygame.K_l:
+            if event.key == pygame.K_l and alive:
                 enemy_list.append(enemy())
             if event.key == pygame.K_F11: 
-                print("Screen Size: ", pygame.display.set_mode().get_size())
-                print("Last Size: ", small_window_x, small_window_y)
                 if fullscreen == False:
                     fullscreen=True
                     game_window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -291,31 +303,47 @@ def input():
             if fullscreen == False: small_window_x,small_window_y = window_x, window_y
             playerOutside()
 
-    if up == True:
+    if up == True and alive:
         if player.y > 0:
             player.move([True,True])
-    if down == True:
+    if down == True and alive:
         if player.y < window_y - 30:
             player.move([False,False])
-    if left == True:
+    if left == True and alive:
         if player.x < window_x - 30:
             player.move([True,False])
-    if right == True:
+    if right == True and alive:
         if player.x > 0:
             player.move([False,True])
-
 while True:
-    input()
-    enemy.spawn() 
+    while alive:
+        input()
+        enemy.spawn() 
 
-    moveEntity()
+        moveEntity()
 
-    for i in enemy_list:
-        i.detectCollision()
+        for i in enemy_list:
+            i.detectCollision()
 
-    game_window.fill(black)
-    player.render()
-    renderEntity()
+        game_window.fill(black)
+        player.render()
+        renderEntity()
 
-    pygame.display.update()
-    fps.tick(fps_speed)
+        pygame.display.update()
+        fps.tick(fps_speed)
+
+    text = font.render('Your highscore:', True, white)
+    score = font.render(str(scoreCount), True, white)
+    textRect = text.get_rect()
+    textRect.center = (window_x // 2, window_y // 2)
+    scoreRect = score.get_rect()
+    scoreRect.center = (window_x // 2, (window_y // 2)+40)
+
+    while not alive:
+        input()
+
+        game_window.fill(black)
+        game_window.blit(text, textRect)
+        game_window.blit(score, scoreRect)
+
+        pygame.display.update()
