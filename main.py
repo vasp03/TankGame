@@ -3,11 +3,13 @@ import random
 import random
 import sys
 import os
+import importlib
 
 #_____________________________________________________________________________#
 #                                                                             #
 #--------------------------   CHANGEABLE SETTINGS   --------------------------#
 #_____________________________________________________________________________#
+
 fps_speed = 60
 
 black = pygame.Color(0, 0, 0)
@@ -22,6 +24,7 @@ player_speed = 2
 enemy_speed = 2
 maximum_enemys = 100
 spawnChance = 1 # Works as procent up to 100. Tries to spawn each render cycle
+secondsBeforeHarder = 60 * 5
 
 fullscreen = False
 window_x, window_y = (600,600)
@@ -37,6 +40,7 @@ down  = False
 right = False
 left  = False
 
+levelCountdown=0
 run=True
 alive = True
 bullet_list=[]
@@ -46,6 +50,12 @@ pygame.init()
 pygame.display.set_caption('Ett spel, I guess')
 fps = pygame.time.Clock()
 scoreCount=0
+killCount=0
+
+if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
+    import pyi_splash
+    pyi_splash.update_text('UI Loaded ...')
+    pyi_splash.close()
 
 def resource_path(relative_path):
     try:
@@ -182,6 +192,7 @@ class bullet():
         pygame.draw.rect(game_window, blue, pygame.Rect(self.x, self.y, 10, 10))
 
 class enemy():
+    global killCount
     def __init__(self):
         i = random.randrange(0,4)
         jx = random.randrange(0,window_x)
@@ -206,7 +217,7 @@ class enemy():
             self.direction = [True,False]  
 
     def spawn():
-        if random.randrange(0,100) < spawnChance:
+        if random.randrange(0,200) < spawnChance+1:
             enemy_list.append(enemy())
 
     def move(self):
@@ -226,7 +237,7 @@ class enemy():
         pygame.draw.rect(game_window, green, pygame.Rect(self.x, self.y, 30, 30))
 
     def detectCollision(self):
-        global alive,scoreCount
+        global alive,scoreCount,killCount
         xx,yy = range(self.x,self.x+30,1),range(self.y,self.y+30,1)
         px1,px2 = player.x,player.x+30
         py1,py2 = player.y,player.y+30
@@ -246,10 +257,11 @@ class enemy():
                     try:
                         enemy_list.remove(self)
                         scoreCount+=1
+                        killCount+=1
                     except:
                         print("Can't kill")
 def input():
-    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount
+    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount,spawnChance
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -267,6 +279,8 @@ def input():
             if event.key == pygame.K_LEFT and alive: player.canon_direction = [True,False]
             if event.key == pygame.K_RIGHT and alive: player.canon_direction= [False,True]
 
+            if event.key == pygame.K_k:
+                spawnChance+=1
             if event.key == pygame.K_r:
                 alive=True
                 scoreCount=0
@@ -324,6 +338,14 @@ def input():
 
 while run:
     while alive:
+        scoreSign = font.render("Score: "+str(scoreCount), True, white)
+        scoreSignRect = scoreSign.get_rect()
+        scoreSignRect.center = (70,20)
+
+        levelSign = font.render("Level: "+str(spawnChance), True, white)
+        levelSignRect = levelSign.get_rect()
+        levelSignRect.center = (65,60)
+
         input()
         enemy.spawn() 
 
@@ -336,19 +358,29 @@ while run:
         player.render()
         renderEntity()
 
+        game_window.blit(scoreSign, scoreSignRect)
+        game_window.blit(levelSign, levelSignRect)
+
+        if killCount > 9:
+            print("Higher")
+            spawnChance+=1
+            killCount=0
+
         pygame.display.update()
         fps.tick(fps_speed)
 
     text = font.render('Your highscore:', True, white)
-    score = font.render(str(scoreCount), True, white)
     textRect = text.get_rect()
     textRect.center = (window_x // 2, window_y // 2)
+
+    score = font.render(str(scoreCount), True, white)
     scoreRect = score.get_rect()
     scoreRect.center = (window_x // 2, (window_y // 2)+40)
 
     while not alive:
         input()
 
+        spawnChance=1
         game_window.fill(black)
         game_window.blit(text, textRect)
         game_window.blit(score, scoreRect)
