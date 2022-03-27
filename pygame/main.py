@@ -219,13 +219,18 @@ class enemy():
 
     def detectCollision(self):
         for bullet in bullet_list:
-            x1,x2 = bullet.x,bullet.x+10
-            y1,y2 = bullet.y,bullet.y+10
+            bx1,bx2 = bullet.x,bullet.x+10
+            by1,by2 = bullet.y,bullet.y+10
+            px1,px2 = player.x,player.x+30
+            py1,py2 = player.y,player.y+30
             xx,yy = range(self.x,self.x+30),range(self.y,self.y+30)
 
+            if px1 in xx or px2 in xx:
+                if py1 in yy or py2 in yy:
+                    print("Dead")
 
-            if x1 in xx or x2 in xx:
-                if y1 in yy or y2 in yy:
+            if bx1 in xx or bx2 in xx:
+                if by1 in yy or by2 in yy:
                     print("Hit")
                     try:
                         enemy_list.remove(self)
