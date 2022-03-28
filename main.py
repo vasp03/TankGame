@@ -25,6 +25,7 @@ enemy_speed = 2
 maximum_enemys = 100
 spawnChance = 1 
 powerupChance = 1
+advancedMenu = True
 
 fullscreen = False
 window_x, window_y = (600,600)
@@ -50,7 +51,7 @@ enemy_list=[]
 powerup_list=[]
 small_window_x, small_window_y = window_x, window_y
 pygame.init()
-pygame.display.set_caption('Ett spel, I guess')
+pygame.display.set_caption('Tank, the first')
 fps = pygame.time.Clock()
 scoreCount=0
 killCount=0
@@ -59,7 +60,6 @@ hitProcent=100
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
     import pyi_splash
     pyi_splash.close()
-
 def resource_path(relative_path):
     try:
     # PyInstaller creates a temp folder and stores path in _MEIPASS
@@ -70,7 +70,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 enemyImg = pygame.image.load(resource_path("enemyImg.png"))
-# bulletImg = pygame.image.load(resource_path("bulletImg.png"))
+bulletImg = pygame.image.load(resource_path("bulletImg.png"))
 # tankImg = pygame.image.load(resource_path("tankImg.png"))
 powerupImg = pygame.image.load(resource_path("powerupImg.png"))
 
@@ -91,8 +91,7 @@ def randId(array,IdPos):
         if not existed: same=False
     return Id
 def trueFalse():
-    global ret
-    global rand
+    global ret,rand
 
     rand = random.randrange(0,2)
     if rand != 1: ret=True 
@@ -200,9 +199,7 @@ class bullet():
             self.x -= bullet_speed
 
     def render(self):
-        # pygame.draw.rect(game_window, blue, pygame.Rect(self.x, self.y, 10, 10))
-        game_window.blit(powerupImg, (self.x,self.y))
-
+        game_window.blit(bulletImg, (self.x,self.y))
 
 class powerup():
     def __init__(self):
@@ -215,8 +212,7 @@ class powerup():
             powerup_list.append(powerup())
 
     def render(self):
-        pygame.draw.rect(game_window, green, pygame.Rect(self.x, self.y, 30, 30))
-        # game_window.blit(powerupImg, (self.x,self.y))
+        game_window.blit(powerupImg, (self.x,self.y))
 
     def detectCollision(self):
         global alive,scoreCount,killCount,shoot_delay
@@ -253,6 +249,8 @@ class enemy():
             self.y = jy
             self.direction = [True,False]  
 
+        self.difficulty = random.randrange(1,3,1)
+
     def spawn():
         if random.randrange(0,200) < spawnChance+1:
             enemy_list.append(enemy())
@@ -262,13 +260,13 @@ class enemy():
             enemy_list.remove(self)
 
         if self.direction == [False,False]: # Down
-            self.y += enemy_speed
+            self.y += enemy_speed*self.difficulty
         elif self.direction == [True,True]: # Up
-            self.y -= enemy_speed
+            self.y -= enemy_speed*self.difficulty
         elif self.direction == [False,True]: # Right
-            self.x += enemy_speed
+            self.x += enemy_speed*self.difficulty
         elif self.direction == [True,False]: # Left
-            self.x -= enemy_speed
+            self.x -= enemy_speed*self.difficulty
 
     def render(self):
         if self.direction == [True,True]: #Up
@@ -291,21 +289,36 @@ class enemy():
                 alive=False
                 score = font.render(str(scoreCount), True, white)
 
+                # file1 = open(resource_path("highscore.txt"), "r") 
+                # print(int(file1.read()))
+                # if int(file1.read())<scoreCount:
+                #     file1.close()
+                #     file1 = open(resource_path("highscore.txt"), "w") 
+                #     file1.write(str(scoreCount))
+                #     file1.close()
+                #     score = font.render(str(scoreCount), True, white)
+                # else:
+                #     scoreCount=int(file1.read())
+                #     file1.close()
+                #     score = font.render(str(scoreCount), True, white)
+
+
+
         for bullet in bullet_list:
             bx1,bx2 = bullet.x,bullet.x+10
             by1,by2 = bullet.y,bullet.y+10
          
             if bx1 in xx or bx2 in xx:
                 if by1 in yy or by2 in yy:
-                    print("Hit")
                     try:
                         enemy_list.remove(self)
                         scoreCount+=1
                         killCount+=1
                     except:
-                        print("Can't kill")
+                        pass
+
 def input():
-    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount,spawnChance,shoot_delay,shoot_timer,bullet_shot
+    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount,spawnChance,shoot_delay,shoot_timer,bullet_shot,advancedMenu
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -325,13 +338,17 @@ def input():
 
             if event.key == pygame.K_k:
                 spawnChance+=1
+            if event.key == pygame.K_i:
+                advancedMenu = not advancedMenu
             if event.key == pygame.K_r:
                 alive=True
                 scoreCount=0
                 shoot_timer=0
+                shoot_delay=60
                 bullet_shot=0
                 spawnChance=1
                 enemy_list=[]
+                powerup_list=[]
                 bullet_list=[]
                 player.x,player.y = round(window_x/2), round(window_y/2)
                 up,down,right,left=False,False,False,False
@@ -343,7 +360,6 @@ def input():
                 bullet.spawn()
                 bullet_shot+=1 
                 shoot_timer=shoot_delay
-
 
         if event.type == pygame.KEYUP and alive:
             if event.key == pygame.K_w: up   =  False
@@ -385,7 +401,6 @@ def input():
         if player.x > 0:
             player.move([False,True])
 
-
 while run:
     while alive:
         scoreSign = font.render("Score: "+str(scoreCount), True, white)
@@ -407,6 +422,10 @@ while run:
         procentSignRect = procentSign.get_rect()
         procentSignRect.center = (82,140)
 
+        shotSign = font.render("shot delay: "+str(shoot_delay), True, white)
+        shotSignRect = shotSign.get_rect()
+        shotSignRect.center = (110,170)
+
         input()
         enemy.spawn() 
         powerup.spawn()
@@ -424,11 +443,12 @@ while run:
 
         game_window.blit(scoreSign, scoreSignRect)
         game_window.blit(levelSign, levelSignRect)
-        game_window.blit(bulletShot, bulletShotRect)
-        game_window.blit(procentSign, procentSignRect)
+        if advancedMenu:
+            game_window.blit(bulletShot, bulletShotRect)
+            game_window.blit(procentSign, procentSignRect)
+            game_window.blit(shotSign, shotSignRect)
 
-        if killCount > 9:
-            print("Higher")
+        if killCount > 11:
             spawnChance+=1
             killCount=0
         if shoot_timer != 0: shoot_timer-=1

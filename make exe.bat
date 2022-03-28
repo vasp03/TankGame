@@ -1,1 +1,0 @@
-pyinstaller -w -F --add-data "FreeSansBold.ttf;." main.py
