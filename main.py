@@ -1,6 +1,5 @@
 import pygame
 import random
-import random
 import sys
 import os
 import importlib
@@ -19,13 +18,13 @@ green = pygame.Color(0, 255, 0)
 blue = pygame.Color(0, 0, 255)
 
 shoot_delay = 60
-bullet_speed = 3
+bullet_speed = 5
 player_speed = 2
 enemy_speed = 2
-maximum_enemys = 100
 spawnChance = 1 
 powerupChance = 1
 advancedMenu = True
+boost = 1500
 
 fullscreen = False
 window_x, window_y = (600,600)
@@ -36,26 +35,30 @@ if fullscreen:
     game_window = pygame.display.set_mode((window_x, window_y))
 else: game_window = pygame.display.set_mode((window_x, window_y), pygame.RESIZABLE)
 
-up    = False
-down  = False
-right = False
-left  = False
-
 bullet_shot=0
 shoot_timer=0
 levelCountdown=0
+scoreCount=0
+killCount=0
+boosted=0
 run=True
-alive = True
+alive=True
+boosting=False
+up=False
+down=False
+right=False
+left=False
 bullet_list=[]
 enemy_list=[]
 powerup_list=[]
 small_window_x, small_window_y = window_x, window_y
+hitProcent=100
+
 pygame.init()
 pygame.display.set_caption('Tank, the first')
 fps = pygame.time.Clock()
-scoreCount=0
-killCount=0
-hitProcent=100
+
+
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
     import pyi_splash
@@ -71,7 +74,8 @@ def resource_path(relative_path):
 
 enemyImg = pygame.image.load(resource_path("enemyImg.png"))
 bulletImg = pygame.image.load(resource_path("bulletImg.png"))
-# tankImg = pygame.image.load(resource_path("tankImg.png"))
+tankImg = pygame.image.load(resource_path("tankImg.png"))
+barrelImg = pygame.image.load(resource_path("barrelImg.png"))
 powerupImg = pygame.image.load(resource_path("powerupImg.png"))
 
 font = pygame.font.Font(resource_path("FreeSansBold.ttf"), 32)
@@ -148,19 +152,18 @@ class playerClass():
             self.x+=player_speed
 
     def render(self):
-        pygame.draw.rect(game_window, white, pygame.Rect(self.x, self.y, 30, 30))
         if self.canon_direction == [False,False]: # Down
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x+10, self.y+30, 10, 10))
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x+10, self.y+40, 10, 10))
+            game_window.blit(pygame.transform.rotate(tankImg, 180), (self.x,self.y))
+            game_window.blit(pygame.transform.rotate(barrelImg, 180), (self.x+10,self.y+30))
         elif self.canon_direction == [True,True]: # Up
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x+10, self.y-10, 10, 10))
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x+10, self.y-20, 10, 10))
+            game_window.blit(pygame.transform.rotate(tankImg, 0), (self.x,self.y))
+            game_window.blit(pygame.transform.rotate(barrelImg, 0), (self.x+10,self.y-20))
         elif self.canon_direction == [False,True]: # Right
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x+30, self.y+10, 10, 10))
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x+40, self.y+10, 10, 10))
+            game_window.blit(pygame.transform.rotate(tankImg, 270), (self.x,self.y))            
+            game_window.blit(pygame.transform.rotate(barrelImg, 270), (self.x+30,self.y+10))
         elif self.canon_direction == [True,False]: # Left
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x-10, self.y+10, 10, 10))
-            pygame.draw.rect(game_window, blue, pygame.Rect(self.x-20, self.y+10, 10, 10))
+            game_window.blit(pygame.transform.rotate(tankImg, 90), (self.x,self.y))
+            game_window.blit(pygame.transform.rotate(barrelImg, 90), (self.x-20,self.y+10))
 player = playerClass()
 
 class bullet():
@@ -231,6 +234,9 @@ class enemy():
         i = random.randrange(0,4)
         jx = random.randrange(0,window_x)
         jy = random.randrange(0,window_y)
+        k = random.randrange(0,100)
+
+        self.diagonal=False
 
         if i == 0: # Down
             self.x = jx
@@ -247,7 +253,11 @@ class enemy():
         elif i == 3: # Left
             self.x = window_x-30
             self.y = jy
-            self.direction = [True,False]  
+            self.direction = [True,False] 
+
+        if k < 3:
+            self.diagonal=True
+            print("Diagonal")
 
         self.difficulty = random.randrange(1,3,1)
 
@@ -258,6 +268,10 @@ class enemy():
     def move(self):
         if self.x < -30 or self.x > window_x or self.y < -30 or self.y > window_y:
             enemy_list.remove(self)
+
+        # if self.diagonal and self.direction==[False,False]:
+        #     self.y+=enemy_speed
+        #     self.x+=enemy_speed
 
         if self.direction == [False,False]: # Down
             self.y += enemy_speed*self.difficulty
@@ -289,18 +303,21 @@ class enemy():
                 alive=False
                 score = font.render(str(scoreCount), True, white)
 
-                # file1 = open(resource_path("highscore.txt"), "r") 
-                # print(int(file1.read()))
-                # if int(file1.read())<scoreCount:
-                #     file1.close()
-                #     file1 = open(resource_path("highscore.txt"), "w") 
-                #     file1.write(str(scoreCount))
-                #     file1.close()
-                #     score = font.render(str(scoreCount), True, white)
-                # else:
-                #     scoreCount=int(file1.read())
-                #     file1.close()
-                #     score = font.render(str(scoreCount), True, white)
+                try:
+                    file1 = open(resource_path("highscore.txt"), "r") 
+                except:
+                    file1 = open(resource_path("highscore.txt"), "x")
+
+                oldScore = int(file1.read())
+                if oldScore<scoreCount:
+                    file1.close()
+                    file1 = open(resource_path("highscore.txt"), "w") 
+                    file1.write(str(scoreCount))
+                    file1.close()
+                    score = font.render(str(scoreCount), True, white)
+                else:
+                    file1.close()
+                    score = font.render(str(scoreCount), True, white)
 
 
 
@@ -317,8 +334,21 @@ class enemy():
                     except:
                         pass
 
+def start():
+    alive=True
+    scoreCount=0
+    shoot_timer=0
+    shoot_delay=60
+    bullet_shot=0
+    spawnChance=1
+    enemy_list=[]
+    powerup_list=[]
+    bullet_list=[]
+    player.x,player.y = round(window_x/2), round(window_y/2)
+    up,down,right,left=False,False,False,False
+
 def input():
-    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount,spawnChance,shoot_delay,shoot_timer,bullet_shot,advancedMenu
+    global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount,spawnChance,shoot_delay,shoot_timer,bullet_shot,advancedMenu,boosting
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -336,6 +366,7 @@ def input():
             if event.key == pygame.K_LEFT and alive: player.canon_direction = [True,False]
             if event.key == pygame.K_RIGHT and alive: player.canon_direction= [False,True]
 
+            if event.key == pygame.K_LSHIFT:boosting=True
             if event.key == pygame.K_k:
                 spawnChance+=1
             if event.key == pygame.K_i:
@@ -367,6 +398,7 @@ def input():
             if event.key == pygame.K_a: right=  False
             if event.key == pygame.K_d: left =  False
 
+            if event.key == pygame.K_LSHIFT:boosting=False
             if event.key == pygame.K_l and alive:
                 enemy_list.append(enemy())
             if event.key == pygame.K_F11: 
@@ -426,6 +458,10 @@ while run:
         shotSignRect = shotSign.get_rect()
         shotSignRect.center = (110,170)
 
+        shotSign = font.render("Boost: "+str(round(boosted/10)), True, white)
+        shotSignRect = shotSign.get_rect()
+        shotSignRect.center = (100,175)
+
         input()
         enemy.spawn() 
         powerup.spawn()
@@ -453,6 +489,19 @@ while run:
             killCount=0
         if shoot_timer != 0: shoot_timer-=1
 
+        if boosted<boost and not boosting:
+            boosted+=2
+            player_speed=2
+
+        if 0<boosted and boosting and boosted != 0:
+            player_speed=4
+            boosted-=10
+        else:
+            player_speed=2
+
+        if boosted<0:
+            boosted=0
+        
         pygame.display.update()
         fps.tick(fps_speed)
 
@@ -464,11 +513,23 @@ while run:
     scoreRect = score.get_rect()
     scoreRect.center = (window_x // 2, (window_y // 2)+40)
 
+    file1 = open(resource_path("highscore.txt"), "r") 
+    oldScore = font.render("Old Highscore: "+file1.read(), True, white)
+    oldScoreRect = oldScore.get_rect()
+    oldScoreRect.center = (window_x // 2, window_y // 2+80)
+
+    textSign = font.render("Press R to restart!", True, white)
+    textSignRect = textSign.get_rect()
+    textSignRect.center = (window_x // 2, window_y // 2+120)
+
     while not alive:
         input()
+        powerup_list=[]
 
         game_window.fill(black)
         game_window.blit(text, textRect)
         game_window.blit(score, scoreRect)
+        game_window.blit(oldScore, oldScoreRect)
+        game_window.blit(textSign, textSignRect)
 
         pygame.display.update()
