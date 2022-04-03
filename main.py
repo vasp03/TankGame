@@ -25,6 +25,7 @@ spawnChance = 1
 powerupChance = 1
 advancedMenu = True
 boost = 1500
+enemyPowerupChance = 4
 
 fullscreen = False
 window_x, window_y = (600,600)
@@ -41,6 +42,7 @@ levelCountdown=0
 scoreCount=0
 killCount=0
 boosted=0
+bullet_amout=1
 run=True
 alive=True
 boosting=False
@@ -58,8 +60,6 @@ pygame.init()
 pygame.display.set_caption('Tank, the first')
 fps = pygame.time.Clock()
 
-
-
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
     import pyi_splash
     pyi_splash.close()
@@ -72,46 +72,17 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-enemyImg = pygame.image.load(resource_path("enemyImg.png"))
-bulletImg = pygame.image.load(resource_path("bulletImg.png"))
-tankImg = pygame.image.load(resource_path("tankImg.png"))
-barrelImg = pygame.image.load(resource_path("barrelImg.png"))
-powerupImg = pygame.image.load(resource_path("powerupImg.png"))
+enemyImg = pygame.image.load(resource_path("pictures/enemyImg.png"))
+bulletImg = pygame.image.load(resource_path("pictures/bulletImg.png"))
+tankImg = pygame.image.load(resource_path("pictures/tankImg.png"))
+barrelImg = pygame.image.load(resource_path("pictures/barrelImg.png"))
+fasterShoting = pygame.image.load(resource_path("pictures/fasterShotingImg.png"))
+multishot = pygame.image.load(resource_path("pictures/multishotImg.png"))
 
-font = pygame.font.Font(resource_path("FreeSansBold.ttf"), 32)
+font = pygame.font.Font(resource_path("FreeSansBold.ttf"), 28)
 
 print("Window size:",window_x,"X",window_y)
 
-def randId(array,IdPos):
-    Id = random.randrange(1,10000)
-    same = True
-
-    while same:
-        existed=False
-        for exists in array:
-            if exists[IdPos] == Id:
-                Id = random.randrange(1,10000)
-                existed=True
-        if not existed: same=False
-    return Id
-def trueFalse():
-    global ret,rand
-
-    rand = random.randrange(0,2)
-    if rand != 1: ret=True 
-    else: ret=False
-    return ret
-def findIndex(searchValue,searchArray):
-    try:
-        return searchArray.index(searchValue)
-    except:
-        return -1
-def existsInArray(refrenceValue,searchArray,searchIndex):
-    retVal=False
-    for search in searchArray:
-        if refrenceValue == search[searchIndex]:
-            retVal = True
-    return retVal
 def playerOutside():
     if player.y > window_y - 30:
         player.y = window_y - 30
@@ -167,26 +138,32 @@ class playerClass():
 player = playerClass()
 
 class bullet():
-    def __init__(self):
+    def __init__(self,offset=0):
         if player.canon_direction == [False,False]: # Down
-            self.x = player.x+10
+            self.x = player.x+10+offset
             self.y = player.y+50
             self.direction = [False,False]
         elif player.canon_direction == [True,True]: # Up
-            self.x = player.x+10
+            self.x = player.x+10+offset
             self.y = player.y-30
             self.direction = [True,True]
         elif player.canon_direction == [False,True]: # Right
             self.x = player.x+50
-            self.y = player.y+10
+            self.y = player.y+10+offset
             self.direction = [False,True]
         elif player.canon_direction == [True,False]: # Left
             self.x = player.x-30
-            self.y = player.y+10
+            self.y = player.y+10+offset
             self.direction = [True,False]
 
     def spawn():
-        bullet_list.append(bullet())
+        offset = 0
+        i=0
+        while i < bullet_amout:
+            bullet_list.append(bullet(offset))
+            if offset<=0: offset=abs(offset)+20
+            else: offset=offset*-1
+            i+=1
 
     def move(self):
         if self.x < 0 or self.x > window_x or self.y < 0 or self.y > window_y:
@@ -205,27 +182,51 @@ class bullet():
         game_window.blit(bulletImg, (self.x,self.y))
 
 class powerup():
-    def __init__(self):
-        self.x = random.randrange(0,window_x)
-        self.y = random.randrange(0,window_y)
-        self.powerup = random.randrange(0,1)
+    def __init__(self,x=0,y=0,type=0):
+        rng = random.randrange(0,10)
+        if rng <= 1: self.type=0
+        else: self.type=1
 
-    def spawn():
-        if random.randrange(0,1000) < powerupChance+1:
-            powerup_list.append(powerup())
+        if x == 0:
+            self.x = random.randrange(0,window_x)
+        else:
+            self.x=x
+        if y == 0:
+            self.y = random.randrange(0,window_y)
+        else:
+            self.y=y
+
+    def spawn(x=0,y=0,enemy=False,noRNG=False):
+        if enemy == False:
+            if random.randrange(0,2000) < powerupChance+1:
+                powerup_list.append(powerup())
+        else:
+            if noRNG:
+                powerup_list.append(powerup(x,y))
+            else:
+                if random.randrange(0,30) < enemyPowerupChance+1:
+                    powerup_list.append(powerup(x,y))
 
     def render(self):
-        game_window.blit(powerupImg, (self.x,self.y))
+        if self.type == 0:
+            game_window.blit(multishot, (self.x,self.y))
+        elif self.type == 1:
+            game_window.blit(fasterShoting, (self.x,self.y))
+        else:
+            pygame.draw.rect(game_window, blue, pygame.Rect(self.x, self.y, 30, 30))
 
     def detectCollision(self):
-        global alive,scoreCount,killCount,shoot_delay
+        global alive,scoreCount,killCount,shoot_delay,bullet_amout
         xx,yy = range(self.x,self.x+30,1),range(self.y,self.y+30,1)
         px1,px2 = player.x,player.x+30
         py1,py2 = player.y,player.y+30
 
         if px1 in xx or px2 in xx:
             if py1 in yy or py2 in yy:
-                shoot_delay-=2
+                if self.type == 0:
+                    bullet_amout+=1
+                elif self.type == 1:
+                    shoot_delay-=2     
                 powerup_list.remove(self)
 
 class enemy():
@@ -269,18 +270,28 @@ class enemy():
         if self.x < -30 or self.x > window_x or self.y < -30 or self.y > window_y:
             enemy_list.remove(self)
 
-        # if self.diagonal and self.direction==[False,False]:
-        #     self.y+=enemy_speed
-        #     self.x+=enemy_speed
-
-        if self.direction == [False,False]: # Down
-            self.y += enemy_speed*self.difficulty
-        elif self.direction == [True,True]: # Up
-            self.y -= enemy_speed*self.difficulty
-        elif self.direction == [False,True]: # Right
-            self.x += enemy_speed*self.difficulty
-        elif self.direction == [True,False]: # Left
-            self.x -= enemy_speed*self.difficulty
+        if self.diagonal:
+            if self.direction == [False,False]: # Down
+                self.y += enemy_speed*self.difficulty
+                self.x += enemy_speed*self.difficulty
+            elif self.direction == [True,True]: # Up
+                self.y -= enemy_speed*self.difficulty
+                self.x -= enemy_speed*self.difficulty
+            elif self.direction == [False,True]: # Right
+                self.y += enemy_speed*self.difficulty
+                self.x += enemy_speed*self.difficulty
+            elif self.direction == [True,False]: # Left
+                self.y -= enemy_speed*self.difficulty
+                self.x -= enemy_speed*self.difficulty
+        else:
+            if self.direction == [False,False]: # Down
+                self.y += enemy_speed*self.difficulty
+            elif self.direction == [True,True]: # Up
+                self.y -= enemy_speed*self.difficulty
+            elif self.direction == [False,True]: # Right
+                self.x += enemy_speed*self.difficulty
+            elif self.direction == [True,False]: # Left
+                self.x -= enemy_speed*self.difficulty
 
     def render(self):
         if self.direction == [True,True]: #Up
@@ -319,8 +330,6 @@ class enemy():
                     file1.close()
                     score = font.render(str(scoreCount), True, white)
 
-
-
         for bullet in bullet_list:
             bx1,bx2 = bullet.x,bullet.x+10
             by1,by2 = bullet.y,bullet.y+10
@@ -328,6 +337,7 @@ class enemy():
             if bx1 in xx or bx2 in xx:
                 if by1 in yy or by2 in yy:
                     try:
+                        powerup.spawn(self.x,self.y,True)
                         enemy_list.remove(self)
                         scoreCount+=1
                         killCount+=1
@@ -525,6 +535,8 @@ while run:
     while not alive:
         input()
         powerup_list=[]
+        bullet_amout=1
+        boosted=0
 
         game_window.fill(black)
         game_window.blit(text, textRect)
