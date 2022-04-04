@@ -53,6 +53,8 @@ left=False
 bullet_list=[]
 enemy_list=[]
 powerup_list=[]
+multishot_list=[]
+boss_list=[]
 small_window_x, small_window_y = window_x, window_y
 hitProcent=100
 
@@ -72,12 +74,14 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+global enemyImg,bulletImg,tankImg,barrelImg,fasterShotingImg,multishotImg
+
 enemyImg = pygame.image.load(resource_path("pictures/enemyImg.png"))
 bulletImg = pygame.image.load(resource_path("pictures/bulletImg.png"))
 tankImg = pygame.image.load(resource_path("pictures/tankImg.png"))
 barrelImg = pygame.image.load(resource_path("pictures/barrelImg.png"))
-fasterShoting = pygame.image.load(resource_path("pictures/fasterShotingImg.png"))
-multishot = pygame.image.load(resource_path("pictures/multishotImg.png"))
+fasterShotingImg = pygame.image.load(resource_path("pictures/fasterShotingImg.png"))
+multishotImg = pygame.image.load(resource_path("pictures/multishotImg.png"))
 
 font = pygame.font.Font(resource_path("FreeSansBold.ttf"), 28)
 
@@ -182,9 +186,10 @@ class bullet():
         game_window.blit(bulletImg, (self.x,self.y))
 
 class powerup():
-    def __init__(self,x=0,y=0,type=0):
+    def __init__(self,x=0,y=0,type=0,timer=60*6):
+        self.timer = timer
         rng = random.randrange(0,10)
-        if rng <= 1: self.type=0
+        if rng <= 3: self.type=0
         else: self.type=1
 
         if x == 0:
@@ -198,8 +203,11 @@ class powerup():
 
     def spawn(x=0,y=0,enemy=False,noRNG=False):
         if enemy == False:
-            if random.randrange(0,2000) < powerupChance+1:
+            if noRNG:
                 powerup_list.append(powerup())
+            else:
+                if random.randrange(0,2000) < powerupChance+1:
+                    powerup_list.append(powerup())
         else:
             if noRNG:
                 powerup_list.append(powerup(x,y))
@@ -209,9 +217,9 @@ class powerup():
 
     def render(self):
         if self.type == 0:
-            game_window.blit(multishot, (self.x,self.y))
+            game_window.blit(multishotImg, (self.x,self.y))
         elif self.type == 1:
-            game_window.blit(fasterShoting, (self.x,self.y))
+            game_window.blit(fasterShotingImg, (self.x,self.y))
         else:
             pygame.draw.rect(game_window, blue, pygame.Rect(self.x, self.y, 30, 30))
 
@@ -224,7 +232,7 @@ class powerup():
         if px1 in xx or px2 in xx:
             if py1 in yy or py2 in yy:
                 if self.type == 0:
-                    bullet_amout+=1
+                    multishot_list.append(self)
                 elif self.type == 1:
                     shoot_delay-=2     
                 powerup_list.remove(self)
@@ -344,6 +352,20 @@ class enemy():
                     except:
                         pass
 
+class bossEnemy():
+    def __init__(x,y,health=4):
+        self.x
+        self.y
+    
+    def spawn():
+        boss_list.append(bossEnemy())
+
+    def render():
+        pass
+
+    def ai():
+        pass
+
 def start():
     alive=True
     scoreCount=0
@@ -381,6 +403,9 @@ def input():
                 spawnChance+=1
             if event.key == pygame.K_i:
                 advancedMenu = not advancedMenu
+            if event.key == pygame.K_j:
+                powerup.spawn(0,0,False,True)
+                print("Spawn")
             if event.key == pygame.K_r:
                 alive=True
                 scoreCount=0
@@ -443,35 +468,43 @@ def input():
         if player.x > 0:
             player.move([False,True])
 
+def gui():
+    scoreSign = font.render("Score: "+str(scoreCount), True, white)
+    scoreSignRect = scoreSign.get_rect()
+    scoreSignRect.center = (70,20)
+
+    levelSign = font.render("Level: "+str(spawnChance), True, white)
+    levelSignRect = levelSign.get_rect()
+    levelSignRect.center = (65,60)
+
+    bulletShot = font.render("Shot bullets: "+str(bullet_shot), True, white)
+    bulletShotRect = bulletShot.get_rect()
+    bulletShotRect.center = (116,100)
+
+    if bullet_shot==0:hitProcent=0
+    else: hitProcent=round((scoreCount+0.001)/(bullet_shot+0.001)*100)
+
+    procentSign = font.render("Hit %: "+str(hitProcent), True, white)
+    procentSignRect = procentSign.get_rect()
+    procentSignRect.center = (82,140)
+
+    shotSign = font.render("shot delay: "+str(shoot_delay), True, white)
+    shotSignRect = shotSign.get_rect()
+    shotSignRect.center = (110,170)
+
+    shotSign = font.render("Boost: "+str(round(boosted/10)), True, white)
+    shotSignRect = shotSign.get_rect()
+    shotSignRect.center = (100,175)
+
+    game_window.blit(scoreSign, scoreSignRect)
+    game_window.blit(levelSign, levelSignRect)
+    if advancedMenu:
+        game_window.blit(bulletShot, bulletShotRect)
+        game_window.blit(procentSign, procentSignRect)
+        game_window.blit(shotSign, shotSignRect)
+
 while run:
     while alive:
-        scoreSign = font.render("Score: "+str(scoreCount), True, white)
-        scoreSignRect = scoreSign.get_rect()
-        scoreSignRect.center = (70,20)
-
-        levelSign = font.render("Level: "+str(spawnChance), True, white)
-        levelSignRect = levelSign.get_rect()
-        levelSignRect.center = (65,60)
-
-        bulletShot = font.render("Shot bullets: "+str(bullet_shot), True, white)
-        bulletShotRect = bulletShot.get_rect()
-        bulletShotRect.center = (116,100)
-
-        if bullet_shot==0:hitProcent=0
-        else: hitProcent=round((scoreCount+0.001)/(bullet_shot+0.001)*100)
-
-        procentSign = font.render("Hit %: "+str(hitProcent), True, white)
-        procentSignRect = procentSign.get_rect()
-        procentSignRect.center = (82,140)
-
-        shotSign = font.render("shot delay: "+str(shoot_delay), True, white)
-        shotSignRect = shotSign.get_rect()
-        shotSignRect.center = (110,170)
-
-        shotSign = font.render("Boost: "+str(round(boosted/10)), True, white)
-        shotSignRect = shotSign.get_rect()
-        shotSignRect.center = (100,175)
-
         input()
         enemy.spawn() 
         powerup.spawn()
@@ -487,16 +520,11 @@ while run:
         player.render()
         renderEntity()
 
-        game_window.blit(scoreSign, scoreSignRect)
-        game_window.blit(levelSign, levelSignRect)
-        if advancedMenu:
-            game_window.blit(bulletShot, bulletShotRect)
-            game_window.blit(procentSign, procentSignRect)
-            game_window.blit(shotSign, shotSignRect)
-
         if killCount > 11:
             spawnChance+=1
             killCount=0
+            if spawnChance % 5 == 0:
+                bossEnemy.spawn()
         if shoot_timer != 0: shoot_timer-=1
 
         if boosted<boost and not boosting:
@@ -511,7 +539,17 @@ while run:
 
         if boosted<0:
             boosted=0
+
+        for bulletPower in multishot_list:
+            if bulletPower.timer > 0:
+                bulletPower.timer-=1
+            else:
+                multishot_list.remove(bulletPower)
+
+        bullet_amout = len(multishot_list)+1
+
         
+        gui()
         pygame.display.update()
         fps.tick(fps_speed)
 
