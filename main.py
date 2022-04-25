@@ -42,7 +42,7 @@ levelCountdown=0
 scoreCount=0
 killCount=0
 boosted=0
-bullet_amout=1
+bullet_amount=1
 run=True
 alive=True
 boosting=False
@@ -54,7 +54,7 @@ bullet_list=[]
 enemy_list=[]
 powerup_list=[]
 multishot_list=[]
-boss_list=[]
+boss=False
 small_window_x, small_window_y = window_x, window_y
 hitProcent=100
 
@@ -85,7 +85,11 @@ multishotImg = pygame.image.load(resource_path("pictures/multishotImg.png"))
 
 font = pygame.font.Font(resource_path("FreeSansBold.ttf"), 28)
 
-print("Window size:",window_x,"X",window_y)
+def log(**txt):
+    def __consoleIt(*txt):
+        print(*txt)
+    __consoleIt(txt["text"][0],txt["text"][1],txt["text"][2],txt["text"][3])
+log(text=["Window size:",window_x,"X",window_y])
 
 def playerOutside():
     if player.y > window_y - 30:
@@ -109,7 +113,8 @@ def renderEntity():
     if len(powerup_list) != 0:
         for jjj in powerup_list:
             jjj.render()
-
+    if not boss:
+        bossEnemy.render()
 class playerClass():
     def __init__(self):
         self.x = round(window_x/2)
@@ -140,35 +145,33 @@ class playerClass():
             game_window.blit(pygame.transform.rotate(tankImg, 90), (self.x,self.y))
             game_window.blit(pygame.transform.rotate(barrelImg, 90), (self.x-20,self.y+10))
 player = playerClass()
-
 class bullet():
-    def __init__(self,offset=0):
-        if player.canon_direction == [False,False]: # Down
-            self.x = player.x+10+offset
-            self.y = player.y+50
+    global bullet_amount
+    def __init__(self,x,y,canon,offset=0):
+        if canon == [False,False]: # Down
+            self.x = x+10+offset
+            self.y = y+50
             self.direction = [False,False]
-        elif player.canon_direction == [True,True]: # Up
-            self.x = player.x+10+offset
-            self.y = player.y-30
+        elif canon == [True,True]: # Up
+            self.x = x+10+offset
+            self.y = y-30
             self.direction = [True,True]
-        elif player.canon_direction == [False,True]: # Right
-            self.x = player.x+50
-            self.y = player.y+10+offset
+        elif canon == [False,True]: # Right
+            self.x = x+50
+            self.y = y+10+offset
             self.direction = [False,True]
-        elif player.canon_direction == [True,False]: # Left
-            self.x = player.x-30
-            self.y = player.y+10+offset
+        elif canon == [True,False]: # Left
+            self.x = x-30
+            self.y = y+10+offset
             self.direction = [True,False]
-
     def spawn():
         offset = 0
         i=0
-        while i < bullet_amout:
-            bullet_list.append(bullet(offset))
+        while i < bullet_amount:
+            bullet_list.append(bullet(player.x,player.y,player.canon_direction,offset))
             if offset<=0: offset=abs(offset)+20
             else: offset=offset*-1
             i+=1
-
     def move(self):
         if self.x < 0 or self.x > window_x or self.y < 0 or self.y > window_y:
             bullet_list.remove(self)
@@ -181,13 +184,11 @@ class bullet():
             self.x += bullet_speed
         elif self.direction == [True,False]: # Left
             self.x -= bullet_speed
-
     def render(self):
         game_window.blit(bulletImg, (self.x,self.y))
-
 class powerup():
-    def __init__(self,x=0,y=0,type=0,timer=60*6):
-        self.timer = timer
+    def __init__(self,x=0,y=0,type=0):
+        self.timer = 360
         rng = random.randrange(0,10)
         if rng <= 3: self.type=0
         else: self.type=1
@@ -200,7 +201,6 @@ class powerup():
             self.y = random.randrange(0,window_y)
         else:
             self.y=y
-
     def spawn(x=0,y=0,enemy=False,noRNG=False):
         if enemy == False:
             if noRNG:
@@ -214,7 +214,6 @@ class powerup():
             else:
                 if random.randrange(0,30) < enemyPowerupChance+1:
                     powerup_list.append(powerup(x,y))
-
     def render(self):
         if self.type == 0:
             game_window.blit(multishotImg, (self.x,self.y))
@@ -222,9 +221,8 @@ class powerup():
             game_window.blit(fasterShotingImg, (self.x,self.y))
         else:
             pygame.draw.rect(game_window, blue, pygame.Rect(self.x, self.y, 30, 30))
-
     def detectCollision(self):
-        global alive,scoreCount,killCount,shoot_delay,bullet_amout
+        global alive,scoreCount,killCount,shoot_delay
         xx,yy = range(self.x,self.x+30,1),range(self.y,self.y+30,1)
         px1,px2 = player.x,player.x+30
         py1,py2 = player.y,player.y+30
@@ -236,7 +234,6 @@ class powerup():
                 elif self.type == 1:
                     shoot_delay-=2     
                 powerup_list.remove(self)
-
 class enemy():
     global killCount
     def __init__(self):
@@ -266,7 +263,6 @@ class enemy():
 
         if k < 3:
             self.diagonal=True
-            print("Diagonal")
 
         self.difficulty = random.randrange(1,3,1)
 
@@ -351,21 +347,26 @@ class enemy():
                         killCount+=1
                     except:
                         pass
-
-class bossEnemy():
-    def __init__(x,y,health=4):
-        self.x
-        self.y
+class bossEnemy(): #ToDo
+    def __init__(self,health=4):
+        self.x=random.randrange(30,window_x-30)
+        self.y=random.randrange(30,window_y-30)
+        self.canon_direction=[True,True]
     
     def spawn():
-        boss_list.append(bossEnemy())
+        boss = bossEnemy()
 
     def render():
-        pass
+        if boss != False:
+            # game_window.blit(bossImg, (boss.x,boss.y))
+            pygame.draw.rect(game_window, blue, pygame.Rect(self.x, self.y, 30, 30))
+
+    def shoot(self):
+        bullet_list.append(bullet(self.x,self.y,self.canon_direction))
 
     def ai():
-        pass
-
+        if boss.x in range(player.x-10,player.y+10) or boss.y in range(player.y-10,player.y+10):
+            pass
 def start():
     alive=True
     scoreCount=0
@@ -378,7 +379,6 @@ def start():
     bullet_list=[]
     player.x,player.y = round(window_x/2), round(window_y/2)
     up,down,right,left=False,False,False,False
-
 def input():
     global up,down,right,left,window_x,window_y,fullscreen,last_window_x,last_window_y,small_window_x, small_window_y,alive,enemy_list,bullet_list,scoreCount,spawnChance,shoot_delay,shoot_timer,bullet_shot,advancedMenu,boosting
 
@@ -401,11 +401,13 @@ def input():
             if event.key == pygame.K_LSHIFT:boosting=True
             if event.key == pygame.K_k:
                 spawnChance+=1
+                if spawnChance % 5 == 0:
+                    print("Boss spawn")
+                    bossEnemy.spawn()
             if event.key == pygame.K_i:
                 advancedMenu = not advancedMenu
             if event.key == pygame.K_j:
                 powerup.spawn(0,0,False,True)
-                print("Spawn")
             if event.key == pygame.K_r:
                 alive=True
                 scoreCount=0
@@ -467,7 +469,6 @@ def input():
     if right == True and alive:
         if player.x > 0:
             player.move([False,True])
-
 def gui():
     scoreSign = font.render("Score: "+str(scoreCount), True, white)
     scoreSignRect = scoreSign.get_rect()
@@ -502,7 +503,35 @@ def gui():
         game_window.blit(bulletShot, bulletShotRect)
         game_window.blit(procentSign, procentSignRect)
         game_window.blit(shotSign, shotSignRect)
+def dataCheck():
+    global killCount,shoot_timer,boosted,spawnChance,player_speed,bullet_amount
+    if killCount > 11:
+        spawnChance+=1
+        killCount=0
+        if spawnChance % 5 == 0:
+            print("Boss spawn")
+            bossEnemy.spawn()
+    if shoot_timer != 0: shoot_timer-=1
 
+    if boosted<boost and not boosting:
+        boosted+=2
+        player_speed=2
+
+    if 0<boosted and boosting and boosted != 0:
+        player_speed=4
+        boosted-=10
+    else:
+        player_speed=2
+
+    if boosted<0:
+        boosted=0
+    
+    for bulletPower in multishot_list:
+        if bulletPower.timer > 0:
+            bulletPower.timer-=1
+        else:
+            multishot_list.remove(bulletPower)
+    bullet_amount = len(multishot_list)+1
 while run:
     while alive:
         input()
@@ -520,34 +549,7 @@ while run:
         player.render()
         renderEntity()
 
-        if killCount > 11:
-            spawnChance+=1
-            killCount=0
-            if spawnChance % 5 == 0:
-                bossEnemy.spawn()
-        if shoot_timer != 0: shoot_timer-=1
-
-        if boosted<boost and not boosting:
-            boosted+=2
-            player_speed=2
-
-        if 0<boosted and boosting and boosted != 0:
-            player_speed=4
-            boosted-=10
-        else:
-            player_speed=2
-
-        if boosted<0:
-            boosted=0
-
-        for bulletPower in multishot_list:
-            if bulletPower.timer > 0:
-                bulletPower.timer-=1
-            else:
-                multishot_list.remove(bulletPower)
-
-        bullet_amout = len(multishot_list)+1
-
+        dataCheck()
         
         gui()
         pygame.display.update()
@@ -573,7 +575,7 @@ while run:
     while not alive:
         input()
         powerup_list=[]
-        bullet_amout=1
+        multishot_list=[]
         boosted=0
 
         game_window.fill(black)
